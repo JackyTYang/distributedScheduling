@@ -10,29 +10,28 @@ spec:
   selector:
     matchLabels:
       app: ds-admission-webhook
-  strategy: {}
   template:
     metadata:
       labels:
         app: ds-admission-webhook
-        cache.wtcx.dev/inject: disabled
+        ds-admission-webhook/autoSchedule: disabled
     spec:
       containers:
-      - image: webhook-test:0.0.1
-        name: ds-admission-webhook
-        env:
-          - name: NODE_ENV
-            value: production
-        volumeMounts:
-          - name: ds-admission-webhook
-            mountPath: /certs
-        resources:
-          limits:
-            cpu: "200m"
-            memory: 100Mi
-          requests:
-            cpu: "200m"
-            memory: 100Mi
+        - image: webhook-test:0.0.1
+          name: ds-admission-webhook
+          env:
+            - name: NODE_ENV
+              value: production
+          volumeMounts:
+            - name: ds-admission-webhook
+              mountPath: /certs
+          resources:
+            limits:
+              cpu: "200m"
+              memory: 100Mi
+            requests:
+              cpu: "200m"
+              memory: 100Mi
       volumes:
         - name: ds-admission-webhook
           secret:
@@ -50,6 +49,6 @@ spec:
   ports:
   - port: 443
     protocol: TCP
-    targetPort: 443
+    targetPort: 8443
   selector:
     app: ds-admission-webhook

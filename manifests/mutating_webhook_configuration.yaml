@@ -1,11 +1,11 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: "ds.dev"
+  name: ds-admission-webhook
   annotations:
     cert-manager.io/inject-ca-from: default/ds-admission-webhook-crt
 webhooks:
-  - name: "mutating.ds.dev"
+  - name: ds-admission-webhook
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 2
     sideEffects: "None"
@@ -14,13 +14,13 @@ webhooks:
     matchPolicy: Equivalent
     objectSelector:
       matchExpressions:
-        - key: cache.wtcx.dev/inject
+        - key: ds-admission-webhook/autoSchedule
           operator: NotIn
           values:
             - "disabled"
     namespaceSelector:
       matchExpressions:
-        - key: "cache.wtcx.dev/inject"
+        - key: ds-admission-webhook/autoSchedule
           operator: NotIn
           values:
             - "disabled"
@@ -34,5 +34,5 @@ webhooks:
       service:
         namespace: "default"
         name: "ds-admission-webhook"
-        path: "/v1/hook/cache/mutate"
+        path: "/webhook"
         port: 443

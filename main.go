@@ -66,7 +66,7 @@ func main() {
 	}
 
 	// start services
-	http.Handle("/webhook", New(&applyNode{}))
+	http.Handle("/webhook", New(&distributedScheduling{}))
 	client.NewClientK8s()
 	if err := server.ListenAndServeTLS("", ""); err != nil {
 		glog.Errorf("server start fail,err is:", err)
@@ -74,10 +74,9 @@ func main() {
 	}
 }
 
-type applyNode struct {
-}
+type distributedScheduling struct{}
 
-func (ch *applyNode) handler(w http.ResponseWriter, r *http.Request) {
+func (ch *distributedScheduling) handler(w http.ResponseWriter, r *http.Request) {
 	var writeErr error
 	if bytes, err := webHookVerify(w, r); err != nil {
 		glog.Errorf("Error handling webhook request: %v", err)
