@@ -21,7 +21,7 @@ var onceK8s sync.Once
 func NewClientK8s() {
 	onceK8s.Do(func() {
 		//本地配置信息
-		cfg, err := clientcmd.BuildConfigFromFlags("", "/etc/config")
+		cfg, err := clientcmd.BuildConfigFromFlags("", "/etc/config/kubeconfig")
 		if err != nil {
 			glog.Errorf("kubernetes client failed")
 			panic(err.Error())

@@ -17,11 +17,15 @@ spec:
         ds-admission-webhook/autoSchedule: disabled
     spec:
       containers:
-        - image: webhook-test:0.0.1
-          name: ds-admission-webhook
-          env:
-            - name: NODE_ENV
-              value: production
+        - name: distributed-scheduling-webhook
+          image: k3d-myregistry.localhost:12345/distributed-scheduling-webhook:latest
+          command: [ "/node" ]
+          ports:
+            - containerPort: 8443
+              name: webhook-api
+          args:
+            - -v=4
+            - -log_dir=log -alsologtostderr
           volumeMounts:
             - name: ds-admission-webhook
               mountPath: /certs

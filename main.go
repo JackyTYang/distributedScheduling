@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -31,12 +32,29 @@ var (
 	Codecs = serializer.NewCodecFactory(scheme)
 )
 
-func main() {
-	//Initializing the glog configuration
-	flag.Parse()
+func init() {
+	// 在 init 函数中定义和设置标志
 	flag.Set("logtostderr", "false")
 	flag.Set("alsologtostderr", "false")
 	flag.Set("log_dir", "/var/log/myapp")
+}
+
+func main() {
+	fmt.Println("Original flags:", os.Args)
+
+	// 过滤掉 --no-opt 和其他不需要的标志
+	var filteredArgs []string
+	for _, arg := range os.Args {
+		if arg != "--no-opt" && arg != "-r" {
+			filteredArgs = append(filteredArgs, arg)
+		}
+	}
+
+	// 替换 os.Args 并重新解析
+	os.Args = filteredArgs
+	flag.Parse()
+
+	fmt.Println("Filtered flags:", os.Args)
 	go func() {
 		for {
 			glog.Flush()
