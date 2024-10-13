@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"distributedScheduling/client"
 	"encoding/json"
@@ -9,15 +8,14 @@ import (
 	"flag"
 	"fmt"
 	"github.com/golang/glog"
-	"k8s.io/api/admission/v1beta1"
+	"k8s.io/api/admission/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"log"
-	"math"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -105,7 +103,7 @@ func webHookVerify(w http.ResponseWriter, r *http.Request) (bytes []byte, err er
 		return nil, fmt.Errorf("unsupported content type %s, only %s is supported", contentType, `application/json`)
 	}
 
-	var admissionReviewReq v1beta1.AdmissionReview
+	var admissionReviewReq v1.AdmissionReview
 	if err := json.NewDecoder(r.Body).Decode(&admissionReviewReq); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return nil, fmt.Errorf("r.Body parsing failed: %v", err)
@@ -117,87 +115,232 @@ func webHookVerify(w http.ResponseWriter, r *http.Request) (bytes []byte, err er
 	//jsonData, err := json.Marshal(admissionReviewReq)
 	//fmt.Println(string(jsonData))
 
-	//You can add multiple services here, if you are modifying a node, go to the server of the node, if it is a pod you can go to the server of the pod
-	node := corev1.Node{}
-	obj, _, err := Codecs.UniversalDecoder().Decode(admissionReviewReq.Request.Object.Raw, nil, &node)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return nil, fmt.Errorf("Request type is not Node.err is: %v", err)
+	// Handle Deployment and StatefulSet requests
+	if admissionReviewReq.Request.Kind.Kind == "Deployment" {
+		return handleDeploymentRequest(admissionReviewReq, w)
+	} else if admissionReviewReq.Request.Kind.Kind == "StatefulSet" {
+		return handleStatefulSetRequest(admissionReviewReq, w)
 	}
 
-	if admissionReviewReq.Request.Namespace == metav1.NamespacePublic || admissionReviewReq.Request.Namespace == metav1.NamespaceSystem {
-		glog.Infof("ns is a public resource and is prohibited from being modified.ns is :", admissionReviewReq.Request.Namespace)
-		return nil, nil
-	}
-	//nodeInfo, _ := obj.(*corev1.Node)
-	//jsonData, err := json.Marshal(nodeInfo)
-	//fmt.Println(string(jsonData))
-	if _, ok := obj.(*corev1.Node); ok {
-		bytes, err = nodePatch(admissionReviewReq, node)
-	}
-
-	if err != nil {
-		glog.Errorf("node server err,err is:", err)
-	}
-	return bytes, err
+	return nil, fmt.Errorf("unsupported request kind %s", admissionReviewReq.Request.Kind.Kind)
 }
 
-func nodePatch(admissionReviewReq v1beta1.AdmissionReview, nodeInfo corev1.Node) (bytes []byte, err error) {
-	var finalCpu string
-	var finalMem string
-
-	// Query the CPU usage and memory usage of a node
-	nodeMetrics, err := client.K8sClient.MetricsApi.MetricsV1beta1().NodeMetricses().Get(context.Background(), nodeInfo.Name, metav1.GetOptions{})
+func handleDeploymentRequest(admissionReviewReq v1.AdmissionReview, w http.ResponseWriter) ([]byte, error) {
+	deployment := appsv1.Deployment{}
+	_, _, err := Codecs.UniversalDecoder().Decode(admissionReviewReq.Request.Object.Raw, nil, &deployment)
 	if err != nil {
-		panic(err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, fmt.Errorf("Request type is not Deployment. err is: %v", err)
 	}
-	capacityCpu := nodeInfo.Status.Capacity.Cpu().MilliValue()
-	capacityMem := nodeInfo.Status.Capacity.Memory().Value() / (1024 * 1024)
-	//fmt.Println("capacityCpu cpu is", capacityCpu)
-	//fmt.Println("capacityMem mem is", capacityMem)
-	//fmt.Println("Allocatable cpu is", nodeInfo.Status.Allocatable.Cpu().MilliValue())
-	//fmt.Println("Allocatable string cpu is", nodeInfo.Status.Allocatable.Cpu().String())
-	//fmt.Println("Allocatable string mem is", nodeInfo.Status.Allocatable.Memory().String())
-	//fmt.Println("Allocatable mem is", nodeInfo.Status.Allocatable.Memory().Value()/(1024*1024))
-	//fmt.Println("nodeMetrics cpu is", nodeMetrics.Usage.Cpu().MilliValue())
-	//fmt.Println("nodeMetrics mem is", nodeMetrics.Usage.Memory().Value()/(1024*1024))
-	allocatableCpu := capacityCpu - nodeMetrics.Usage.Cpu().MilliValue()
-	allocatableMem := capacityMem - nodeMetrics.Usage.Memory().Value()/(1024*1024)
+	if admissionReviewReq.Request.Namespace == metav1.NamespacePublic || admissionReviewReq.Request.Namespace == metav1.NamespaceSystem {
+		glog.Infof("ns is a public resource and is prohibited from being modified. ns is :", admissionReviewReq.Request.Namespace)
+		return nil, nil
+	}
+	// Modify the Deployment to add the appropriate affinity rules
+	return deploymentPatch(admissionReviewReq, deployment)
+}
 
-	if allocatableCpu > nodeInfo.Status.Allocatable.Cpu().MilliValue() {
-		floatCpu := math.Round(float64(allocatableCpu / 1000))
-		finalCpu = strconv.FormatFloat(floatCpu, 'f', -1, 64)
-	} else {
-		finalCpu = nodeInfo.Status.Allocatable.Cpu().String()
+func handleStatefulSetRequest(admissionReviewReq v1.AdmissionReview, w http.ResponseWriter) ([]byte, error) {
+	statefulSet := appsv1.StatefulSet{}
+	_, _, err := Codecs.UniversalDecoder().Decode(admissionReviewReq.Request.Object.Raw, nil, &statefulSet)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, fmt.Errorf("Request type is not StatefulSet. err is: %v", err)
 	}
-	if allocatableMem > nodeInfo.Status.Allocatable.Memory().Value()/(1024*1024) {
-		finalMem = strconv.Itoa(int(allocatableMem*1024)) + "Ki"
-	} else {
-		finalMem = nodeInfo.Status.Allocatable.Memory().String()
+	if admissionReviewReq.Request.Namespace == metav1.NamespacePublic || admissionReviewReq.Request.Namespace == metav1.NamespaceSystem {
+		glog.Infof("ns is a public resource and is prohibited from being modified. ns is :", admissionReviewReq.Request.Namespace)
+		return nil, nil
 	}
-	admissionReviewResponse := v1beta1.AdmissionReview{
+	// Modify the StatefulSet to add the appropriate affinity rules
+	return statefulSetPatch(admissionReviewReq, statefulSet)
+}
+
+func deploymentPatch(admissionReviewReq v1.AdmissionReview, deployment appsv1.Deployment) (bytes []byte, err error) {
+	// Modify Deployment to add affinity rules based on replicas
+	if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 1 {
+		// Single replica: prioritize spot but allow on-demand
+		deployment.Spec.Template.Spec.Affinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
+					{
+						Weight: 1,
+						Preference: corev1.NodeSelectorTerm{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "node.kubernetes.io/capacity",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"spot"},
+								},
+							},
+						},
+					},
+				},
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "node.kubernetes.io/capacity",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"spot", "on-demand"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	} else {
+		// Multiple replicas: prioritize spot, fallback to on-demand
+		deployment.Spec.Template.Spec.Affinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
+					{
+						Weight: 1,
+						Preference: corev1.NodeSelectorTerm{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "node.kubernetes.io/capacity",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"spot"},
+								},
+							},
+						},
+					},
+				},
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "node.kubernetes.io/capacity",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"spot", "on-demand"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+	patchOps := []PatchOperation{
+		getPatchItem("add", "/spec/template/spec/affinity", deployment.Spec.Template.Spec.Affinity),
+	}
+	patchBytes, err := json.Marshal(patchOps)
+	if err != nil {
+		return nil, err
+	}
+
+	admissionReviewResponse := v1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "AdmissionReview",
 			APIVersion: "admission.k8s.io/v1",
 		},
-		Response: &v1beta1.AdmissionResponse{
-			UID: admissionReviewReq.Request.UID,
+		Response: &v1.AdmissionResponse{
+			UID:     admissionReviewReq.Request.UID,
+			Allowed: true,
+			Patch:   patchBytes,
+			PatchType: func() *v1.PatchType {
+				pt := v1.PatchTypeJSONPatch
+				return &pt
+			}(),
 		},
 	}
-	//Oversold logic can be added here
-	patchOps := append(Patches, getPatchItem("replace", "/status/allocatable/cpu", string(finalCpu)), getPatchItem("replace", "/status/allocatable/memory", finalMem))
-	patchBytes, err := json.Marshal(patchOps)
-	admissionReviewResponse.Response.Allowed = true
-	admissionReviewResponse.Response.Patch = patchBytes
-	admissionReviewResponse.Response.PatchType = func() *v1beta1.PatchType {
-		pt := v1beta1.PatchTypeJSONPatch
-		return &pt
-	}()
+	return json.Marshal(&admissionReviewResponse)
+}
 
-	// Return the AdmissionReview with a response as JSON.
-	bytes, err = json.Marshal(&admissionReviewResponse)
-	return
+func statefulSetPatch(admissionReviewReq v1.AdmissionReview, statefulSet appsv1.StatefulSet) (bytes []byte, err error) {
+	// Modify StatefulSet to add affinity rules based on replicas
+	if statefulSet.Spec.Replicas != nil && *statefulSet.Spec.Replicas == 1 {
+		// Single replica: schedule on on-demand node to ensure stability
+		statefulSet.Spec.Template.Spec.Affinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "node.kubernetes.io/capacity",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"on-demand"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	} else {
+		// Multiple replicas: distribute 70% on on-demand, 30% on spot nodes
+		statefulSet.Spec.Template.Spec.Affinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
+					{
+						Weight: 7,
+						Preference: corev1.NodeSelectorTerm{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "node.kubernetes.io/capacity",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"on-demand"},
+								},
+							},
+						},
+					},
+					{
+						Weight: 3,
+						Preference: corev1.NodeSelectorTerm{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "node.kubernetes.io/capacity",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"spot"},
+								},
+							},
+						},
+					},
+				},
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "node.kubernetes.io/capacity",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"spot", "on-demand"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+	patchOps := []PatchOperation{
+		getPatchItem("add", "/spec/template/spec/affinity", statefulSet.Spec.Template.Spec.Affinity),
+	}
+	patchBytes, err := json.Marshal(patchOps)
+	if err != nil {
+		return nil, err
+	}
+
+	admissionReviewResponse := v1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AdmissionReview",
+			APIVersion: "admission.k8s.io/v1",
+		},
+		Response: &v1.AdmissionResponse{
+			UID:     admissionReviewReq.Request.UID,
+			Allowed: true,
+			Patch:   patchBytes,
+			PatchType: func() *v1.PatchType {
+				pt := v1.PatchTypeJSONPatch
+				return &pt
+			}(),
+		},
+	}
+	return json.Marshal(&admissionReviewResponse)
 }
 
 func getPatchItem(op string, path string, val interface{}) PatchOperation {

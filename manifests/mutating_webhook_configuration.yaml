@@ -26,9 +26,9 @@ webhooks:
             - "disabled"
     rules:
       - operations: ["CREATE"]
-        apiGroups: [""]
+        apiGroups: ["apps"]
         apiVersions: ["v1"]
-        resources: ["pods"]
+        resources: ["deployments", "statefulsets"]
         scope: "Namespaced"
     clientConfig:
       service:
