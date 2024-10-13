@@ -25,6 +25,8 @@ spec:
           volumeMounts:
             - name: ds-admission-webhook
               mountPath: /certs
+            - name: kubeconfig
+              mountPath: /etc/config
           resources:
             limits:
               cpu: "200m"
@@ -36,6 +38,9 @@ spec:
         - name: ds-admission-webhook
           secret:
             secretName: ds-admission-webhook-crt-secret
+        - name: kubeconfig
+          configMap:
+            name: kubeconfig
 
 ---
 apiVersion: v1

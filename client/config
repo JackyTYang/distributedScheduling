@@ -1,0 +1,217 @@
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://183.136.185.210.nip.io:6443
+  name: apecloud-idc-public
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://9A18ECFE51233123699F68305F51A679.gr7.us-west-2.eks.amazonaws.com
+  name: arn:aws:eks:us-west-2:799177412343:cluster/kubeblocks-demo
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://34.29.22.149
+  name: gke_apecloud-platform-engineering_us-central1-c_kb-090
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://34.31.161.204
+  name: gke_apecloud-platform-engineering_us-central1_kb-090-test
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://0.0.0.0:56419
+  name: k3d-ckad
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://0.0.0.0:53749
+  name: k3d-distributedScheduling
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://0.0.0.0:49772
+  name: k3d-kb-090
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://0.0.0.0:60690
+  name: k3d-kb080
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://0.0.0.0:60862
+  name: k3d-kubeblocks-cloud
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://0.0.0.0:56192
+  name: k3d-test-ingress
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://0.0.0.0:63428
+  name: k3d-test-kb-addon
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://k8s-playground-dns-w2edjqtk.hcp.eastus.azmk8s.io:443
+  name: k8s-playground
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://39.98.169.22:6443
+  name: ksr-test
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://47.92.200.102:6443
+  name: kubernetes
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://47.94.240.188:6443
+  name: kubernetesforksr
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://single-click-deployment-dns-lc9xtdsa.hcp.chinanorth3.cx.prod.service.azk8s.cn:443
+  name: single-click-deployment
+contexts:
+- context:
+    cluster: kubernetesforksr
+    user: "300301022762401347"
+  name: 300301022762401347-cd8570f30418643faadf624c0ada27b09
+- context:
+    cluster: kubernetes
+    user: "300301022762401347"
+  name: 300301022762401347-ce154bd3174954be49cb6e60973b977f6
+- context:
+    cluster: apecloud-idc-public
+    namespace: ns-admin
+    user: admin@apecloud-idc
+  name: admin@apecloud-idc-public
+- context:
+    cluster: arn:aws:eks:us-west-2:799177412343:cluster/kubeblocks-demo
+    user: arn:aws:eks:us-west-2:799177412343:cluster/kubeblocks-demo
+  name: arn:aws:eks:us-west-2:799177412343:cluster/kubeblocks-demo
+- context:
+    cluster: gke_apecloud-platform-engineering_us-central1-c_kb-090
+    user: gke_apecloud-platform-engineering_us-central1-c_kb-090
+  name: gke_apecloud-platform-engineering_us-central1-c_kb-090
+- context:
+    cluster: gke_apecloud-platform-engineering_us-central1_kb-090-test
+    user: gke_apecloud-platform-engineering_us-central1_kb-090-test
+  name: gke_apecloud-platform-engineering_us-central1_kb-090-test
+- context:
+    cluster: k3d-ckad
+    user: admin@k3d-ckad
+  name: k3d-ckad
+- context:
+    cluster: k3d-distributedScheduling
+    user: admin@k3d-distributedScheduling
+  name: k3d-distributedScheduling
+- context:
+    cluster: k3d-kb-090
+    user: admin@k3d-kb-090
+  name: k3d-kb-090
+- context:
+    cluster: k3d-kb080
+    user: admin@k3d-kb080
+  name: k3d-kb080
+- context:
+    cluster: k3d-kubeblocks-cloud
+    user: admin@k3d-kubeblocks-cloud
+  name: k3d-kubeblocks-cloud
+- context:
+    cluster: k3d-test-kb-addon
+    user: admin@k3d-test-kb-addon
+  name: k3d-test-kb-addon
+- context:
+    cluster: k8s-playground
+    user: clusterUser_kubeblocks-cloud-playground_k8s-playground
+  name: k8s-playground
+- context:
+    cluster: ksr-test
+    user: "300301022762401347"
+  name: ksr-test
+- context:
+    cluster: single-click-deployment
+    user: clusterUser_kse-test_single-click-deployment
+  name: single-click-deployment
+current-context: k3d-distributedScheduling
+kind: Config
+preferences: {}
+users:
+- name: "300301022762401347"
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: admin@apecloud-idc
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: admin@k3d-ckad
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: admin@k3d-distributedScheduling
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: admin@k3d-kb-090
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: admin@k3d-kb080
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: admin@k3d-kubeblocks-cloud
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: admin@k3d-test-kb-addon
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: arn:aws:eks:us-west-2:799177412343:cluster/kubeblocks-demo
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      args:
+      - --region
+      - us-west-2
+      - eks
+      - get-token
+      - --cluster-name
+      - kubeblocks-demo
+      - --output
+      - json
+      command: aws
+      env: null
+      interactiveMode: IfAvailable
+      provideClusterInfo: false
+- name: clusterUser_kse-test_single-click-deployment
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+    token: REDACTED
+- name: clusterUser_kubeblocks-cloud-playground_k8s-playground
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+    token: REDACTED
+- name: gke_apecloud-platform-engineering_us-central1-c_kb-090
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      args: null
+      command: gke-gcloud-auth-plugin
+      env: null
+      installHint: Install gke-gcloud-auth-plugin for use with kubectl by following
+        https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin
+      interactiveMode: IfAvailable
+      provideClusterInfo: true
+- name: gke_apecloud-platform-engineering_us-central1_kb-090-test
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      args: null
+      command: gke-gcloud-auth-plugin
+      env: null
+      installHint: Install gke-gcloud-auth-plugin for use with kubectl by following
+        https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin
+      interactiveMode: IfAvailable
+      provideClusterInfo: true
+- name: ksr-test
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED

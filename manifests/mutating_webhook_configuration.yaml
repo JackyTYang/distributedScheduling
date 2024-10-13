@@ -5,7 +5,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: default/ds-admission-webhook-crt
 webhooks:
-  - name: ds-admission-webhook
+  - name: "ds.admission.webhook"
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 2
     sideEffects: "None"
@@ -15,15 +15,15 @@ webhooks:
     objectSelector:
       matchExpressions:
         - key: ds-admission-webhook/autoSchedule
-          operator: NotIn
+          operator: In
           values:
-            - "disabled"
+            - "enabled"
     namespaceSelector:
       matchExpressions:
         - key: ds-admission-webhook/autoSchedule
-          operator: NotIn
+          operator: In
           values:
-            - "disabled"
+            - "enabled"
     rules:
       - operations: ["CREATE"]
         apiGroups: ["apps"]

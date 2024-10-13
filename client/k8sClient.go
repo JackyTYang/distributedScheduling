@@ -17,7 +17,7 @@ type Client struct {
 var K8sClient *Client
 var onceK8s sync.Once
 
-//原生创建client
+// 原生创建client
 func NewClientK8s() {
 	onceK8s.Do(func() {
 		//本地配置信息
