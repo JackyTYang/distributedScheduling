@@ -17,6 +17,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -209,18 +210,32 @@ func deploymentPatch(admissionReviewReq v1.AdmissionReview, deployment appsv1.De
 			},
 		}
 	} else {
+		weight := getDeploymentSpotWeight(&deployment)
+		appName := deployment.ObjectMeta.Labels["app"]
 		// Multiple replicas: prioritize spot, fallback to on-demand
 		deployment.Spec.Template.Spec.Affinity = &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{
 				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
 					{
-						Weight: 1,
+						Weight: weight,
 						Preference: corev1.NodeSelectorTerm{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								{
 									Key:      "node.kubernetes.io/capacity",
 									Operator: corev1.NodeSelectorOpIn,
 									Values:   []string{"spot"},
+								},
+							},
+						},
+					},
+					{
+						Weight: 10 - weight,
+						Preference: corev1.NodeSelectorTerm{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "node.kubernetes.io/capacity",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"on-demand"},
 								},
 							},
 						},
@@ -236,6 +251,22 @@ func deploymentPatch(admissionReviewReq v1.AdmissionReview, deployment appsv1.De
 									Values:   []string{"spot", "on-demand"},
 								},
 							},
+						},
+					},
+				},
+			},
+			// 配置 PodAntiAffinity
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: 1,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": appName, // 用实际的 app 名称替换 stateful-app
+								},
+							},
+							TopologyKey: "kubernetes.io/hostname", // 确保不同副本分布在不同节点上
 						},
 					},
 				},
@@ -290,12 +321,14 @@ func statefulSetPatch(admissionReviewReq v1.AdmissionReview, statefulSet appsv1.
 			},
 		}
 	} else {
+		weight := getStatefulSetSpotWeight(&statefulSet)
+		appName := statefulSet.ObjectMeta.Labels["app"]
 		// Multiple replicas: distribute 70% on on-demand, 30% on spot nodes
 		statefulSet.Spec.Template.Spec.Affinity = &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{
 				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
 					{
-						Weight: 7,
+						Weight: 10 - weight,
 						Preference: corev1.NodeSelectorTerm{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								{
@@ -307,7 +340,7 @@ func statefulSetPatch(admissionReviewReq v1.AdmissionReview, statefulSet appsv1.
 						},
 					},
 					{
-						Weight: 3,
+						Weight: weight,
 						Preference: corev1.NodeSelectorTerm{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								{
@@ -329,6 +362,22 @@ func statefulSetPatch(admissionReviewReq v1.AdmissionReview, statefulSet appsv1.
 									Values:   []string{"spot", "on-demand"},
 								},
 							},
+						},
+					},
+				},
+			},
+			// 配置 PodAntiAffinity
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: 1,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": appName, // 用实际的 app 名称替换 stateful-app
+								},
+							},
+							TopologyKey: "kubernetes.io/hostname", // 确保不同副本分布在不同节点上
 						},
 					},
 				},
@@ -367,6 +416,38 @@ func getPatchItem(op string, path string, val interface{}) PatchOperation {
 		Path:  path,
 		Value: val,
 	}
+}
+
+func getDeploymentSpotWeight(deployment *appsv1.Deployment) int32 {
+	spotWeight, exists := deployment.ObjectMeta.Labels["ds-admission-webhook/spotWeight"]
+	if !exists || spotWeight == "" {
+		spotWeight = "10" // default weight, all on spot by default
+	}
+	weightInt, err := strconv.Atoi(spotWeight)
+	if err != nil {
+		// 如果转换出错，使用默认值
+		weightInt = 3
+	}
+
+	// 将weightInt从int类型转换为int32
+	weight := int32(weightInt)
+	return weight
+}
+
+func getStatefulSetSpotWeight(statefulset *appsv1.StatefulSet) int32 {
+	spotWeight, exists := statefulset.ObjectMeta.Labels["ds-admission-webhook/spotWeight"]
+	if !exists || spotWeight == "" {
+		spotWeight = "3" // default weight
+	}
+	weightInt, err := strconv.Atoi(spotWeight)
+	if err != nil {
+		// 如果转换出错，使用默认值
+		weightInt = 3
+	}
+
+	// 将weightInt从int类型转换为int32
+	weight := int32(weightInt)
+	return weight
 }
 
 type Handler interface {

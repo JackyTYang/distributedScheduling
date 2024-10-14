@@ -4,6 +4,7 @@ metadata:
   name: nginx
   labels:
     ds-admission-webhook/autoSchedule: "enabled"
+    ds-admission-webhook/spotWeight: 3
 spec:
   serviceName: "nginx"
   replicas: 10

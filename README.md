@@ -66,8 +66,8 @@ Using an admission webhook to modify the affinity of the pods, applying the sche
 - **Single Replica**: Schedule to on-demand nodes directly to ensure stability.
 - **Multiple Replicas**: 70% should be scheduled to on-demand nodes and 30% to spot nodes to reduce costs while retaining stability. This ratio can be customized via annotations, but the on-demand ratio cannot be 0.
 
-### Anti-affinity Configuration
-For multi-replica StatefulSets and Deployments, consider using pod anti-affinity to ensure that replicas do not all get scheduled on the same node type, reducing risk.
+### Pod Anti-affinity Configuration
+- For multi-replica StatefulSets and Deployments, consider using pod anti-affinity to ensure that replicas do not all get scheduled on the same node type, reducing risk.
 
 ## Affinity Examples
 
@@ -158,7 +158,7 @@ affinity:
         podAffinityTerm:
           labelSelector:
             matchLabels:
-              app: stateful-app
+              app: app-name
           topologyKey: "kubernetes.io/hostname"  # Ensure different replicas are spread across nodes
 ```
 ## Future Consideration
