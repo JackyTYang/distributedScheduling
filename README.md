@@ -32,7 +32,7 @@ The objective of this strategy is to ensure that workloads are optimally balance
 - **Single Replica Workloads**: Prioritize on-demand nodes to ensure availability, using spot instances as secondary options if no on-demand capacity is available.
 - **Multiple Replica Workloads**: Distribute replicas across both spot and on-demand nodes to ensure at least one replica remains available in the event of spot termination.
 
-### 4. Spot Instance Monitoring
+### 4. Spot Instance Monitoring - TODO
 - Monitor spot instance termination signals through external mechanisms (handled separately from scheduling control).
 - Once a termination signal is received, existing components will gracefully drain the spot nodes and reschedule workloads onto available nodes.
 
@@ -47,7 +47,6 @@ Using an admission webhook to modify the affinity of the pods, applying the sche
 1. Write the webhook in Golang and build it as a container image.
 2. Deploy it in a deployment and expose it via a service.
 3. Configure the `MutatingWebhookConfiguration` to register the webhook.
-4. (Optional) Authenticate the apiserver with kubeconfig.
 
 ## Scheduling Strategy
 
@@ -55,7 +54,7 @@ Using an admission webhook to modify the affinity of the pods, applying the sche
 1. Only two kinds of nodes: on-demand and spot.
 2. All nodes are in the same zone (inter-AZ not considered).
 3. User-defined affinities have a higher priority.
-4. Use annotations to control whether a pod follows the webhook scheduling strategy.
+4. Use annotations to control whether a pod follows the webhook scheduling strategy. Only the namespace and the workload have the lable ds-admission-webhook/autoSchedule: "enabled" can trigger the webhook.
 
 ### Strategy
 
@@ -70,7 +69,7 @@ Using an admission webhook to modify the affinity of the pods, applying the sche
 ### Anti-affinity Configuration
 For multi-replica StatefulSets and Deployments, consider using pod anti-affinity to ensure that replicas do not all get scheduled on the same node type, reducing risk.
 
-## Examples
+## Affinity Examples
 
 ### 1. Deployment (Single Replica & Multi-Replica)
 
@@ -162,3 +161,13 @@ affinity:
               app: stateful-app
           topologyKey: "kubernetes.io/hostname"  # Ensure different replicas are spread across nodes
 ```
+## Future Consideration
+1. **Persistent Volume Topology**: Based on the pod's PVC (Persistent Volume Claim), the system locates the storage class, identifies the available zones within that storage class, and selects one at random.
+
+2. **Topology Spread**: Using Kubernetes topologySpreadConstraints, you can distribute pods across different zones to minimize the impact of potential outages by spreading them out.
+
+3. **Pre-scheduling and Spot Instance Fallback**: This involves pre-scheduling mechanisms to predict potential spot instance interruptions and implementing fallback strategies before the unavailability occurs.
+
+4. **Spot-Friendly Pod Identification**: Identifying pods that are optimized or suitable for running on spot instances, ensuring efficient use of such instances.
+
+5. **Rolling Updates and Scheduling Consistency**: Ensuring consistency in the scheduling process during rolling updates, maintaining stable and reliable deployments.
