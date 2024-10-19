@@ -103,6 +103,7 @@ func main() {
 		panic(err)
 	}
 	// 将 pod 加入 informer，并注册 event handler 函数
+	// 该方法不可行。因为pod会批量调度，webhook处理下一个pod前，上一个pod可能还未被监听到，导致一大批pod都用的是最初的分布
 	//informer := watchPods()
 	//stopCh := make(chan struct{})
 	//go informer.Run(stopCh)
@@ -247,13 +248,20 @@ func handlePodRequest(admissionReviewReq v1.AdmissionReview, w http.ResponseWrit
 	}
 
 	// 检查该类deploy下的pod是否有调度分布数据
-	if podDistribution[namespace][appLabel].OnDemand == 0 && podDistribution[namespace][appLabel].Spot == 0 {
-		// 使用clientSet list机制构建数据
-		err := buildPodDistributionData(namespace, appLabel)
-		if err != nil {
-			glog.Errorf("Failed to build pod distribution data: %v", err)
-			return nil, err
-		}
+	//if podDistribution[namespace][appLabel].OnDemand == 0 && podDistribution[namespace][appLabel].Spot == 0 {
+	//	// 使用clientSet list机制构建数据
+	//	err := buildPodDistributionData(namespace, appLabel)
+	//	if err != nil {
+	//		glog.Errorf("Failed to build pod distribution data: %v", err)
+	//		return nil, err
+	//	}
+	//}
+
+	// 每次都重新计算
+	err = buildPodDistributionData(namespace, appLabel)
+	if err != nil {
+		glog.Errorf("Failed to build pod distribution data: %v", err)
+		return nil, err
 	}
 
 	var actualSpotWeightRatio, anticipatedSpotWeightRatio float64
@@ -288,6 +296,11 @@ func handlePodRequest(admissionReviewReq v1.AdmissionReview, w http.ResponseWrit
 
 // 使用clientSet构建Pod分布数据
 func buildPodDistributionData(namespace, appLabel string) error {
+
+	//初始化数据
+	podDistribution[namespace][appLabel].OnDemand = 0
+	podDistribution[namespace][appLabel].Spot = 0
+
 	// 使用K8sClient.Api获取当前namespace下，符合app标签的Pod列表
 	podList, err := client.K8sClient.Api.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app=%s", appLabel),

@@ -4,9 +4,9 @@ metadata:
   name: nginx
   labels:
     ds-admission-webhook/autoSchedule: "enabled"
-    ds-admission-webhook/spotWeight: "50"
+    ds-admission-webhook/spotWeight: "99"
 spec:
-  replicas: 10
+  replicas: 20
   selector:
     matchLabels:
       app: nginx
@@ -15,7 +15,7 @@ spec:
       labels:
         app: nginx
         ds-admission-webhook/autoSchedule: "enabled"
-        ds-admission-webhook/spotWeight: "40"
+        ds-admission-webhook/spotWeight: "99"
     spec:
       containers:
         - name: nginx
