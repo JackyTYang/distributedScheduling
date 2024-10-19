@@ -31,13 +31,12 @@ type PatchOperation struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
-var Patches []PatchOperation
 var (
 	scheme = runtime.NewScheme()
 	Codecs = serializer.NewCodecFactory(scheme)
 )
 
-// 定义用于存储Pod分布情况的结构体
+// 定义用于存储Pod分布情况
 type PodDistribution struct {
 	Spot     int
 	OnDemand int
@@ -107,65 +106,6 @@ func main() {
 	//informer := watchPods()
 	//stopCh := make(chan struct{})
 	//go informer.Run(stopCh)
-}
-
-func watchPods() cache.SharedInformer {
-	// 创建一个不带命名空间和标签过滤的 SharedInformerFactory
-	factory := informers.NewSharedInformerFactory(client.K8sClient.Api, 0)
-
-	// 创建 Pod 的 Informer
-	podInformer := factory.Core().V1().Pods().Informer()
-
-	// 添加事件处理函数
-	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			pod := obj.(*corev1.Pod)
-			glog.Infof("Pod added: %s/%s", pod.Namespace, pod.Name)
-
-			// 检查标签是否为 ds-admission-webhook/autoSchedule: "enabled"
-			if value, ok := pod.Labels["ds-admission-webhook/autoSchedule"]; !ok || value != "enabled" {
-				glog.Infof("Pod %s/%s does not have the required label or it's not enabled, skipping.", pod.Namespace, pod.Name)
-				return
-			}
-
-			// 获取 Pod 所在的节点名称
-			nodeName := pod.Spec.NodeName
-			if nodeName == "" {
-				glog.Infof("Pod %s/%s is not yet scheduled to a node, skipping.", pod.Namespace, pod.Name)
-				return
-			}
-
-			// 获取节点信息
-			node, err := client.K8sClient.Api.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
-			if err != nil {
-				glog.Errorf("Failed to get node %s for pod %s/%s: %v", nodeName, pod.Namespace, pod.Name, err)
-				return
-			}
-
-			// 确定节点的容量类型（spot 或 on-demand）
-			capacityType, ok := node.Labels["node.kubernetes.io/capacity"]
-			if !ok {
-				glog.Infof("Node %s does not have the 'node.kubernetes.io/capacity' label, skipping.", nodeName)
-				return
-			}
-
-			// 更新 PodDistribution 数据
-			// 检查并初始化嵌套的映射
-			if _, ok := podDistribution[pod.Namespace]; !ok {
-				podDistribution[pod.Namespace] = make(map[string]*PodDistribution)
-			}
-			if _, ok := podDistribution[pod.Namespace]["app"]; !ok {
-				podDistribution[pod.Namespace]["app"] = &PodDistribution{}
-			}
-			if capacityType == "spot" {
-				podDistribution[pod.Namespace]["app"].Spot++
-			} else if capacityType == "on-demand" {
-				podDistribution[pod.Namespace]["app"].OnDemand++
-			}
-			glog.Infof("Updated pod distribution for %s/%s on node %s (%s)", pod.Namespace, pod.Name, nodeName, capacityType)
-		},
-	})
-	return podInformer
 }
 
 type distributedScheduling struct{}
@@ -697,12 +637,12 @@ func getPatchItem(op string, path string, val interface{}) PatchOperation {
 func getPodSpotWeight(pod *corev1.Pod) int32 {
 	spotWeight, exists := pod.ObjectMeta.Labels["ds-admission-webhook/spotWeight"]
 	if !exists || spotWeight == "" {
-		spotWeight = "100" // default weight, all on spot by default
+		spotWeight = "99" // default weight, all on spot by default
 	}
 	weightInt, err := strconv.Atoi(spotWeight)
 	if err != nil {
 		// 如果转换出错，使用默认值
-		weightInt = 100
+		weightInt = 99
 	}
 
 	// 将weightInt从int类型转换为int32
@@ -713,12 +653,12 @@ func getPodSpotWeight(pod *corev1.Pod) int32 {
 func getDeploymentSpotWeight(deployment *appsv1.Deployment) int32 {
 	spotWeight, exists := deployment.ObjectMeta.Labels["ds-admission-webhook/spotWeight"]
 	if !exists || spotWeight == "" {
-		spotWeight = "100" // default weight, all on spot by default
+		spotWeight = "99" // default weight, all on spot by default
 	}
 	weightInt, err := strconv.Atoi(spotWeight)
 	if err != nil {
 		// 如果转换出错，使用默认值
-		weightInt = 100
+		weightInt = 99
 	}
 
 	// 将weightInt从int类型转换为int32
@@ -760,4 +700,63 @@ func New(handler Handler) *HandleProxy {
 func (h *HandleProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	h.handler.handler(w, r)
+}
+
+func watchPods() cache.SharedInformer {
+	// 创建一个不带命名空间和标签过滤的 SharedInformerFactory
+	factory := informers.NewSharedInformerFactory(client.K8sClient.Api, 0)
+
+	// 创建 Pod 的 Informer
+	podInformer := factory.Core().V1().Pods().Informer()
+
+	// 添加事件处理函数
+	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			pod := obj.(*corev1.Pod)
+			glog.Infof("Pod added: %s/%s", pod.Namespace, pod.Name)
+
+			// 检查标签是否为 ds-admission-webhook/autoSchedule: "enabled"
+			if value, ok := pod.Labels["ds-admission-webhook/autoSchedule"]; !ok || value != "enabled" {
+				glog.Infof("Pod %s/%s does not have the required label or it's not enabled, skipping.", pod.Namespace, pod.Name)
+				return
+			}
+
+			// 获取 Pod 所在的节点名称
+			nodeName := pod.Spec.NodeName
+			if nodeName == "" {
+				glog.Infof("Pod %s/%s is not yet scheduled to a node, skipping.", pod.Namespace, pod.Name)
+				return
+			}
+
+			// 获取节点信息
+			node, err := client.K8sClient.Api.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+			if err != nil {
+				glog.Errorf("Failed to get node %s for pod %s/%s: %v", nodeName, pod.Namespace, pod.Name, err)
+				return
+			}
+
+			// 确定节点的容量类型（spot 或 on-demand）
+			capacityType, ok := node.Labels["node.kubernetes.io/capacity"]
+			if !ok {
+				glog.Infof("Node %s does not have the 'node.kubernetes.io/capacity' label, skipping.", nodeName)
+				return
+			}
+
+			// 更新 PodDistribution 数据
+			// 检查并初始化嵌套的映射
+			if _, ok := podDistribution[pod.Namespace]; !ok {
+				podDistribution[pod.Namespace] = make(map[string]*PodDistribution)
+			}
+			if _, ok := podDistribution[pod.Namespace]["app"]; !ok {
+				podDistribution[pod.Namespace]["app"] = &PodDistribution{}
+			}
+			if capacityType == "spot" {
+				podDistribution[pod.Namespace]["app"].Spot++
+			} else if capacityType == "on-demand" {
+				podDistribution[pod.Namespace]["app"].OnDemand++
+			}
+			glog.Infof("Updated pod distribution for %s/%s on node %s (%s)", pod.Namespace, pod.Name, nodeName, capacityType)
+		},
+	})
+	return podInformer
 }
