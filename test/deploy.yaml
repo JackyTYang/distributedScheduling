@@ -1,12 +1,11 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: nginx
   labels:
     ds-admission-webhook/autoSchedule: "enabled"
-    ds-admission-webhook/spotWeight: 3
+    ds-admission-webhook/spotWeight: "50"
 spec:
-  serviceName: "nginx"
   replicas: 10
   selector:
     matchLabels:
@@ -15,6 +14,8 @@ spec:
     metadata:
       labels:
         app: nginx
+        ds-admission-webhook/autoSchedule: "enabled"
+        ds-admission-webhook/spotWeight: "40"
     spec:
       containers:
         - name: nginx

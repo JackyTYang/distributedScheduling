@@ -27,7 +27,7 @@ func NewClientK8s() {
 			panic(err.Error())
 		}
 		K8sClient = &Client{Api: nil, MetricsApi: nil}
-		//K8sClient.Api, err = kubernetes.NewForConfig(cfg)
+		K8sClient.Api, err = kubernetes.NewForConfig(cfg)
 		K8sClient.MetricsApi, err = versioned.NewForConfig(cfg)
 		fmt.Println("k8s service success")
 		if err != nil {

@@ -16,6 +16,7 @@ spec:
         app: ds-admission-webhook
         ds-admission-webhook/autoSchedule: disabled
     spec:
+      serviceAccountName: webhook-service-account
       containers:
         - name: distributed-scheduling-webhook
           image: k3d-myregistry.localhost:12345/distributed-scheduling-webhook:latest

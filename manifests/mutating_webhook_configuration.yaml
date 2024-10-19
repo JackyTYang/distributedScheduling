@@ -30,6 +30,11 @@ webhooks:
         apiVersions: ["v1"]
         resources: ["deployments", "statefulsets"]
         scope: "Namespaced"
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+        scope: "Namespaced"
     clientConfig:
       service:
         namespace: "default"
